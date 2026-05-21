@@ -11,13 +11,17 @@ from sklearn.metrics import (
     recall_score,
     f1_score,
     classification_report,
-    confusion_matrix
+    confusion_matrix,
+    ConfusionMatrixDisplay,
+    roc_auc_score,
+    RocCurveDisplay
 )
 
 import torch
+import matplotlib.pyplot as plt
 
 # Importamos los modelos
-def evaluate_model(model, X_test_tensor, y_test):
+def evaluate_model(model, X_test_tensor, y_test, model_name=""):
     # Ponemos el modelo en modo evaluación
     model.eval()
     # Desactivamos el cálculo de gradientes para la evaluación
@@ -43,8 +47,26 @@ def evaluate_model(model, X_test_tensor, y_test):
     print("\nClassification Report:")
     print(classification_report(y_test, y_pred))
 
-    print("\nConfusion Matrix:")
-    print(confusion_matrix(y_test, y_pred))
+    # ======================================
+    # MATRIZ DE CONFUSIÓN
+    # ======================================
+
+    cm = confusion_matrix(
+        y_test,
+        y_pred
+    )
+
+    disp = ConfusionMatrixDisplay(
+        confusion_matrix=cm
+    )
+
+    disp.plot()
+
+    plt.title(
+        f"Matriz de Confusión - {model_name}"
+    )
+
+    plt.show()
 
     return {
         "accuracy": accuracy,

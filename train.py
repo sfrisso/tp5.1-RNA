@@ -18,6 +18,7 @@ def train_model(model, criterion, optimizer,
 
     # Iteramos sobre el número de épocas para entrenar el modelo
     for epoch in range(epochs):
+        #model.train() #Activa dropout.
         # Ponemos el modelo en modo entrenamiento
         outputs = model(X_train_tensor)
         # Calculamos la pérdida entre las predicciones del modelo y las etiquetas reales

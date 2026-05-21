@@ -20,6 +20,7 @@ from models.regularized_model import RegularizedModel
 
 import pandas as pd
 import time
+import matplotlib.pyplot as plt
 
 from train import train_model
 from evaluate import evaluate_model
@@ -68,6 +69,7 @@ X_test = imputer.transform(X_test)
 # -----------------------------
 # SMOTE (solo train)
 # -----------------------------
+# Se usa smote para balancear las clases. Genera nuevas muestras artificiales de la clase minoritaria (sobrevivió o no).
 smote = SMOTE(random_state=42)
 X_train, y_train = smote.fit_resample(X_train, y_train)
 
@@ -112,29 +114,53 @@ for name, model in models.items():
 
     criterion = nn.BCELoss()
 
-    optimizer = optim.Adam(
+    optimizer = optim.Adam( #El optimizador Adam actualiza los pesos utilizando el descenso del gradiente.
         model.parameters(),
         lr=0.001
     )
 
-    train_model(
+    train_losses = train_model(#Asignamos a la variable train_losses para luego realizar el grafico de las pérdidas.
         model,
         criterion,
         optimizer,
         X_train_tensor,
         y_train_tensor,
-        epochs=100
+        epochs=100 #A mayor cantidad de epochs (pasadas completas sobre el dataset de entrenamiento), más riesgo de overfitting.
     )
 
     metrics = evaluate_model(
         model,
         X_test_tensor,
-        y_test
+        y_test,
+        model_name = name
     )
 
     end_time = time.time()
 
     execution_time = end_time - start_time
+
+    # -----------------------------
+    # GRÁFICO DE PÉRDIDA
+    # -----------------------------
+
+    plt.figure(figsize=(8, 5))
+
+    plt.plot(
+        train_losses,
+        label="Train Loss"
+    )
+
+    plt.xlabel("Epoch")
+
+    plt.ylabel("Loss")
+
+    plt.title(f"Loss - {name}")
+
+    plt.legend()
+
+    plt.grid(True)
+
+    plt.show()
 
     results.append({
         "Modelo": name,
