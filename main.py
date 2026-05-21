@@ -1,16 +1,28 @@
-import pandas as pd
-import numpy as np
-
-from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import StandardScaler
-from sklearn.metrics import accuracy_score, classification_report
-from sklearn.impute import SimpleImputer
-
-from imblearn.over_sampling import SMOTE
-
+# -----------------------------
+# Main.py
+# Este código es el punto de entrada del proyecto. Se encarga de cargar el dataset, 
+# preprocesar los datos, definir los modelos, entrenarlos y evaluarlos.
+# -----------------------------
 import torch
 import torch.nn as nn
 import torch.optim as optim
+
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from imblearn.over_sampling import SMOTE
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.impute import SimpleImputer
+
+from models.base_model import BaseModel
+from models.deep_model import DeepModel
+from models.regularized_model import RegularizedModel
+
+import pandas as pd
+import time
+
+from train import train_model
+from evaluate import evaluate_model
 
 # -----------------------------
 # Cargar dataset
@@ -35,97 +47,117 @@ df = pd.get_dummies(df, columns=["Embarked"], drop_first=True)
 X = df.drop("Survived", axis=1)
 y = df["Survived"]
 
-# Completar faltantes
-imputer = SimpleImputer(strategy="mean")
-X = imputer.fit_transform(X)
-
-# Escalado
-scaler = StandardScaler()
-X = scaler.fit_transform(X)
-
 # -----------------------------
-# Balanceo
+# Split
 # -----------------------------
-
-smote = SMOTE(random_state=42)
-X, y = smote.fit_resample(X, y)
-
-# -----------------------------
-# División train/test
-# -----------------------------
-
 X_train, X_test, y_train, y_test = train_test_split(
-    X, y,
+    X,
+    y,
     test_size=0.2,
     random_state=42
 )
 
-# Tensor PyTorch
-X_train = torch.tensor(X_train, dtype=torch.float32)
-X_test = torch.tensor(X_test, dtype=torch.float32)
+# -----------------------------
+# Imputación (SOLO train fit)
+# -----------------------------
+imputer = SimpleImputer(strategy="mean")
 
-y_train = torch.tensor(y_train.values, dtype=torch.float32).view(-1, 1)
-y_test = torch.tensor(y_test.values, dtype=torch.float32).view(-1, 1)
+X_train = imputer.fit_transform(X_train)
+X_test = imputer.transform(X_test)
 
 # -----------------------------
-# Modelo RNA
+# SMOTE (solo train)
 # -----------------------------
-
-class MLP(nn.Module):
-    def __init__(self):
-        super().__init__()
-
-        self.model = nn.Sequential(
-            nn.Linear(X_train.shape[1], 32),
-            nn.ReLU(),
-
-            nn.Linear(32, 16),
-            nn.ReLU(),
-
-            nn.Linear(16, 1),
-            nn.Sigmoid()
-        )
-
-    def forward(self, x):
-        return self.model(x)
-
-model = MLP()
+smote = SMOTE(random_state=42)
+X_train, y_train = smote.fit_resample(X_train, y_train)
 
 # -----------------------------
-# Entrenamiento
+# Escalado (solo train fit)
 # -----------------------------
+scaler = StandardScaler()
 
-criterion = nn.BCELoss()
-optimizer = optim.Adam(model.parameters(), lr=0.001)
-
-epochs = 100
-
-for epoch in range(epochs):
-
-    outputs = model(X_train)
-
-    loss = criterion(outputs, y_train)
-
-    optimizer.zero_grad()
-    loss.backward()
-    optimizer.step()
-
-    if (epoch + 1) % 10 == 0:
-        print(f"Epoch {epoch+1}/{epochs} - Loss: {loss.item():.4f}")
+X_train = scaler.fit_transform(X_train)
+X_test = scaler.transform(X_test)
 
 # -----------------------------
-# Evaluación
+# Tensores
+# -----------------------------
+X_train_tensor = torch.tensor(X_train, dtype=torch.float32)
+X_test_tensor = torch.tensor(X_test, dtype=torch.float32)
+
+y_train_tensor = torch.tensor(y_train, dtype=torch.float32).view(-1, 1)
+
+# -----------------------------
+# MODELOS
 # -----------------------------
 
-with torch.no_grad():
+input_size = X_train.shape[1]
 
-    predictions = model(X_test)
+models = {
+    "BaseModel": BaseModel(input_size),
+    "DeepModel": DeepModel(input_size),
+    "RegularizedModel": RegularizedModel(input_size)
+}
 
-    predictions = (predictions >= 0.5).float()
+results = []
 
-accuracy = accuracy_score(y_test, predictions)
+# -----------------------------
+# ENTRENAMIENTO
+# -----------------------------
 
-print("\nAccuracy:", accuracy)
+for name, model in models.items():
 
-print("\nClassification Report:\n")
-print(classification_report(y_test, predictions))
+    print(f"\n========== {name} ==========")
+    start_time = time.time()
+
+    criterion = nn.BCELoss()
+
+    optimizer = optim.Adam(
+        model.parameters(),
+        lr=0.001
+    )
+
+    train_model(
+        model,
+        criterion,
+        optimizer,
+        X_train_tensor,
+        y_train_tensor,
+        epochs=100
+    )
+
+    metrics = evaluate_model(
+        model,
+        X_test_tensor,
+        y_test
+    )
+
+    end_time = time.time()
+
+    execution_time = end_time - start_time
+
+    results.append({
+        "Modelo": name,
+        "Accuracy": metrics["accuracy"],
+        "Precision": metrics["precision"],
+        "Recall": metrics["recall"],
+        "F1-Score": metrics["f1"],
+        "Tiempo (s)": execution_time
+    })
+
+# -----------------------------
+# RESULTADOS FINALES
+# -----------------------------
+
+print("\n===== RESULTADOS =====")
+
+results_df = pd.DataFrame(results)
+
+print(results_df)
+
+best_model = results_df.loc[
+    results_df["Accuracy"].idxmax()
+]
+
+print("\n===== MEJOR MODELO =====")
+print(best_model)
