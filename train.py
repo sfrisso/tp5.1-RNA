@@ -10,11 +10,14 @@ import time
 # Importamos los modelos
 def train_model(model, criterion, optimizer,
                 X_train_tensor, y_train_tensor,
-                epochs=100):
+                epochs):
     
     # Lista para almacenar las pérdidas durante el entrenamiento
     losses = []
     start_time = time.time()
+
+    #Creamos un intervalo para que la evolución de las pérdidas se imprima como máximo 10 veces en todo el entrenamiento
+    print_interval = max(1, epochs // 10)
 
     # Iteramos sobre el número de épocas para entrenar el modelo
     for epoch in range(epochs):
@@ -32,7 +35,7 @@ def train_model(model, criterion, optimizer,
         # Almacenamos la pérdida actual en la lista de pérdidas
         losses.append(loss.item())
         # Imprimimos la pérdida cada 10 épocas para monitorear el progreso del entrenamiento
-        if (epoch + 1) % 10 == 0:
+        if (epoch + 1) % print_interval == 0:
             print(f"Epoch [{epoch+1}/{epochs}] "
                   f"Loss: {loss.item():.4f}")
     end_time = time.time()

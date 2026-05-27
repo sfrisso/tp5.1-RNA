@@ -109,6 +109,33 @@ results = []
 
 for name, model in models.items():
 
+    print(f"\nConfiguración de entrenamiento para {name}")
+
+    #Ingreso del learning rate.
+    while True:
+        try:
+            lr_user = float(input("Ingrese learning rate (ej: 0.001): "))
+            if lr_user <= 0:
+                print("El learning rate debe ser mayor a 0.")
+                continue
+            break
+        except ValueError:
+            print("Ingrese un número válido.")
+
+    #Ingreso de la cantidad de épocas
+    while True:
+        try:
+            epochs_user = int(
+                input("Ingrese cantidad de epocas (ej: 50): ")
+            )
+            if epochs_user <= 0:
+                print("Las epocas deben ser mayores a 0.")
+                continue
+            break
+        except ValueError:
+            print("Ingrese un número entero válido.")
+
+
     print(f"\n========== {name} ==========")
     start_time = time.time()
 
@@ -116,7 +143,7 @@ for name, model in models.items():
 
     optimizer = optim.Adam( #El optimizador Adam actualiza los pesos utilizando el descenso del gradiente.
         model.parameters(),
-        lr=0.001
+        lr=lr_user
     )
 
     train_losses = train_model(#Asignamos a la variable train_losses para luego realizar el grafico de las pérdidas.
@@ -125,7 +152,7 @@ for name, model in models.items():
         optimizer,
         X_train_tensor,
         y_train_tensor,
-        epochs=100 #A mayor cantidad de epochs (pasadas completas sobre el dataset de entrenamiento), más riesgo de overfitting.
+        epochs=epochs_user #A mayor cantidad de epochs (pasadas completas sobre el dataset de entrenamiento), más riesgo de overfitting.
     )
 
     metrics = evaluate_model(
@@ -154,7 +181,7 @@ for name, model in models.items():
 
     plt.ylabel("Loss")
 
-    plt.title(f"Loss - {name}")
+    plt.title(f"Train Loss - {name}")
 
     plt.legend()
 
@@ -164,6 +191,8 @@ for name, model in models.items():
 
     results.append({
         "Modelo": name,
+        "Learning-Rate":lr_user,
+        "Epochs": epochs_user,
         "Accuracy": metrics["accuracy"],
         "Precision": metrics["precision"],
         "Recall": metrics["recall"],
@@ -182,8 +211,8 @@ results_df = pd.DataFrame(results)
 print(results_df)
 
 best_model = results_df.loc[
-    results_df["Accuracy"].idxmax()
+    results_df["F1-Score"].idxmax()
 ]
 
 print("\n===== MEJOR MODELO =====")
-print(best_model)
+print(best_model.to_string())
